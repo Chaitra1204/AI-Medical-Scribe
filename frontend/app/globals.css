@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1a5276;
+  --color-accent: #2ecc71;
+  --color-warning: #e67e22;
+  --color-danger: #e74c3c;
+  --color-background: #f8f9fa;
+  --color-text: #2c3e50;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

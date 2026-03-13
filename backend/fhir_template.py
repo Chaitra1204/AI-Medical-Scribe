@@ -1,0 +1,199 @@
+from datetime import datetime, timezone
+
+
+def _make_reference(name: str, resource_type: str) -> dict:
+    """Build a FHIR reference object."""
+    return {"reference": f"{resource_type}/{name}", "display": name}
+
+
+def _make_section(
+    title: str,
+    loinc_code: str,
+    loinc_display: str,
+    text: str,
+    entries: list[dict] | None = None,
+) -> dict:
+    """Build a single FHIR Composition section."""
+    section = {
+        "title": title,
+        "code": {
+            "coding": [
+                {
+                    "system": "http://loinc.org",
+                    "code": loinc_code,
+                    "display": loinc_display,
+                }
+            ]
+        },
+        "text": {
+            "status": "generated",
+            "div": f'<div xmlns="http://www.w3.org/1999/xhtml">{text}</div>',
+        },
+    }
+
+    if entries:
+        section["entry"] = entries
+
+    return section
+
+
+def _format_subjective(subj: dict) -> str:
+    """Format subjective section as HTML text."""
+    parts = []
+    if subj.get("chief_complaint"):
+        parts.append(f"<p><b>Chief Complaint:</b> {subj['chief_complaint']}</p>")
+    if subj.get("history_of_present_illness"):
+        parts.append(f"<p><b>HPI:</b> {subj['history_of_present_illness']}</p>")
+    if subj.get("review_of_systems"):
+        parts.append(f"<p><b>ROS:</b> {subj['review_of_systems']}</p>")
+    return "".join(parts) if parts else "<p>No data recorded</p>"
+
+
+def _format_objective(obj: dict) -> str:
+    """Format objective section as HTML text."""
+    parts = []
+    if obj.get("vitals"):
+        parts.append(f"<p><b>Vitals:</b> {obj['vitals']}</p>")
+    if obj.get("physical_exam"):
+        parts.append(f"<p><b>Physical Exam:</b> {obj['physical_exam']}</p>")
+    if obj.get("observations"):
+        parts.append(f"<p><b>Observations:</b> {obj['observations']}</p>")
+    return "".join(parts) if parts else "<p>No data recorded</p>"
+
+
+def _format_assessment(assess: dict) -> str:
+    """Format assessment section as HTML text."""
+    parts = []
+    if assess.get("diagnosis"):
+        parts.append(f"<p><b>Diagnosis:</b> {assess['diagnosis']}</p>")
+    if assess.get("differential"):
+        parts.append(f"<p><b>Differential:</b> {assess['differential']}</p>")
+
+    codes = assess.get("icd10_codes", [])
+    if codes:
+        items = "".join(
+            f"<li>{c.get('code', '')} — {c.get('description', '')}</li>"
+            for c in codes
+        )
+        parts.append(f"<p><b>ICD-10 Codes:</b></p><ul>{items}</ul>")
+
+    return "".join(parts) if parts else "<p>No data recorded</p>"
+
+
+def _format_plan(plan: dict) -> str:
+    """Format plan section as HTML text."""
+    parts = []
+
+    meds = plan.get("medications", [])
+    if meds:
+        rows = "".join(
+            f"<li>{m.get('drug_name', '')} {m.get('dose', '')} "
+            f"{m.get('route', '')} {m.get('frequency', '')} "
+            f"for {m.get('duration', 'unspecified')}</li>"
+            for m in meds
+        )
+        parts.append(f"<p><b>Medications:</b></p><ul>{rows}</ul>")
+
+    if plan.get("tests_ordered"):
+        parts.append(f"<p><b>Tests Ordered:</b> {plan['tests_ordered']}</p>")
+    if plan.get("follow_up"):
+        parts.append(f"<p><b>Follow Up:</b> {plan['follow_up']}</p>")
+
+    return "".join(parts) if parts else "<p>No data recorded</p>"
+
+
+def _build_icd10_entries(assess: dict) -> list[dict]:
+    """Build FHIR entry references for ICD-10 codes."""
+    entries = []
+    for code_obj in assess.get("icd10_codes", []):
+        entries.append(
+            {
+                "reference": f"Condition/{code_obj.get('code', 'unknown')}",
+                "display": code_obj.get("description", ""),
+            }
+        )
+    return entries
+
+
+def build_fhir_composition(soap_note: dict, patient_info: dict) -> dict:
+    """Build a FHIR R4 Composition resource from a SOAP note.
+
+    Conforms to ABDM (Ayushman Bharat Digital Mission) Health Data standards.
+    """
+
+    now = datetime.now(timezone.utc)
+    composition_id = f"aushadh-{now.strftime('%Y%m%d%H%M%S')}"
+
+    patient_name = patient_info.get("patient_name", "Unknown")
+    doctor_name = patient_info.get("doctor_name", "Unknown")
+
+    subj = soap_note.get("subjective", {})
+    obj = soap_note.get("objective", {})
+    assess = soap_note.get("assessment", {})
+    plan = soap_note.get("plan", {})
+
+    icd10_entries = _build_icd10_entries(assess)
+
+    composition = {
+        "resourceType": "Composition",
+        "id": composition_id,
+        "meta": {
+            "profile": [
+                "https://nrces.in/ndhm/fhir/r4/StructureDefinition/OPConsultRecord"
+            ],
+            "lastUpdated": now.isoformat(),
+        },
+        "extension": [
+            {
+                "url": "https://nrces.in/ndhm/fhir/r4/StructureDefinition/AushadhAIMetadata",
+                "valueString": "Generated by Aushadh AI Medical Scribe. Requires physician verification.",
+            }
+        ],
+        "status": "final",
+        "type": {
+            "coding": [
+                {
+                    "system": "http://snomed.info/sct",
+                    "code": "371530004",
+                    "display": "Clinical consultation report",
+                }
+            ]
+        },
+        "subject": _make_reference(patient_name, "Patient"),
+        "date": now.isoformat(),
+        "author": [_make_reference(doctor_name, "Practitioner")],
+        "title": "Aushadh Clinical Consultation Record",
+        "section": [
+            # Subjective — LOINC 10164-2 (History of Present illness)
+            _make_section(
+                title="Subjective",
+                loinc_code="10164-2",
+                loinc_display="History of Present illness Narrative",
+                text=_format_subjective(subj),
+            ),
+            # Objective — LOINC 29545-1 (Physical examination)
+            _make_section(
+                title="Objective",
+                loinc_code="29545-1",
+                loinc_display="Physical findings Narrative",
+                text=_format_objective(obj),
+            ),
+            # Assessment — LOINC 51848-0 (Evaluation note)
+            _make_section(
+                title="Assessment",
+                loinc_code="51848-0",
+                loinc_display="Evaluation + Plan note",
+                text=_format_assessment(assess),
+                entries=icd10_entries if icd10_entries else None,
+            ),
+            # Plan — LOINC 18776-5 (Plan of care)
+            _make_section(
+                title="Plan",
+                loinc_code="18776-5",
+                loinc_display="Plan of care note",
+                text=_format_plan(plan),
+            ),
+        ],
+    }
+
+    return composition
