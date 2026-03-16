@@ -30,6 +30,9 @@ https://console.groq.com
 
 ## Step 1 — Clone Repository
 
+git clone https://github.com/YOUR_USERNAME/aushadh.git
+cd aushadh
+
 ```bash
 ## Step 2 — Start Backend
 
@@ -97,5 +100,3 @@ Open in browser:
 ```
 http://localhost:3000
 ```
-git clone https://github.com/YOUR_USERNAME/aushadh.git
-cd aushadh
