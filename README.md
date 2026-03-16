@@ -31,8 +31,71 @@ https://console.groq.com
 ## Step 1 — Clone Repository
 
 ```bash
-Step 2 — Start Backend
+## Step 2 — Start Backend
+
+```bash
 cd backend
 python -m venv venv
+```
+
+Activate virtual environment:
+
+**Windows**
+
+```bash
+venv\Scripts\activate
+```
+
+**Mac / Linux**
+
+```bash
+source venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Step 3 — Add Groq API Key
+
+Create a `.env` file inside the **backend** folder and add:
+
+```
+GROQ_API_KEY=your_api_key_here
+```
+
+---
+
+## Step 4 — Run Backend
+
+```bash
+uvicorn main:app --reload --port 8000
+```
+
+Backend will run at:
+
+```
+http://localhost:8000
+```
+
+---
+
+## Step 5 — Run Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open in browser:
+
+```
+http://localhost:3000
+```
 git clone https://github.com/YOUR_USERNAME/aushadh.git
 cd aushadh
