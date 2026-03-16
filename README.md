@@ -30,10 +30,11 @@ https://console.groq.com
 
 ## Step 1 — Clone Repository
 
+```bash
 git clone https://github.com/YOUR_USERNAME/aushadh.git
 cd aushadh
+```
 
-```bash
 ## Step 2 — Start Backend
 
 ```bash
