@@ -31,5 +31,8 @@ https://console.groq.com
 ## Step 1 — Clone Repository
 
 ```bash
+Step 2 — Start Backend
+cd backend
+python -m venv venv
 git clone https://github.com/YOUR_USERNAME/aushadh.git
 cd aushadh
